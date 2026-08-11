@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A force-push while a build is queued makes the older run pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      # build.sh, not `swift build`: it also assembles and codesigns the .app, which is
+      # where the fiddly parts live (Sparkle.framework embedding, rpath, inside-out
+      # signing). Those break far more easily than compilation does.
+      #
+      # No secrets are needed or wanted here. build.sh seeds Secrets.plist from the
+      # tracked example, so this passes on pull requests from forks, which by design
+      # cannot read repository secrets.
+      - name: Build and assemble the app
+        run: ./Scripts/build.sh
+
+      # TODO: add `swift test` once issue #10 lands a test target.
