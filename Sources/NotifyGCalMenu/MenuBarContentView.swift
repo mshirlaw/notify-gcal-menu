@@ -43,6 +43,12 @@ struct MenuBarContentView: View {
             }
             .disabled(!appModel.isSignedIn)
 
+            if updater.isEnabled {
+                Button("Check for Updates…") {
+                    updater.checkForUpdates()
+                }
+            }
+
             if let statusMessage = appModel.statusMessage {
                 Text(statusMessage)
                     .font(.caption)
