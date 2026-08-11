@@ -27,6 +27,8 @@ if there isn't one.
 - `Info.plist`: app bundle metadata (menu-bar-only, no Dock icon)
 - `Scripts/build.sh`: builds the package and assembles it into a runnable `.app`
 - `appcast.xml`: the Sparkle update feed, hosted from the repo root
+- `.github/workflows/ci.yml`: builds the app on every push and pull request
+- `.github/workflows/release.yml`: builds, signs, notarizes, and publishes on every `v*` tag
 
 ## First-Time Developer Setup
 
@@ -53,9 +55,10 @@ here purely as good hygiene, not because it protects anything on its own.
 
 ### 2. Fill in Secrets.plist
 
-- Copy `Sources/NotifyGCalMenu/Resources/Secrets.plist.example` to
-  `Sources/NotifyGCalMenu/Resources/Secrets.plist` (already done by default; just edit it)
-- Replace `GoogleClientID` and `GoogleClientSecret` with the values from step 1
+- Run `./Scripts/build.sh` once; it creates
+  `Sources/NotifyGCalMenu/Resources/Secrets.plist` from the tracked `.example` file if you
+  don't have one yet (the build needs the file to exist, placeholders or not)
+- Replace `GoogleClientID` and `GoogleClientSecret` in it with the values from step 1
 - Rebuild (`./Scripts/build.sh`) so the new file gets copied into the app bundle
 
 ## Building and Running
@@ -103,23 +106,67 @@ install can be updated again.
 Pages or other hosting required. It starts with no entries, which Sparkle reads as "you're
 up to date".
 
-For each release, sign the distributed archive and add an `<item>` to `appcast.xml`:
-
-```sh
-./bin/sign_update NotifyGCalMenu.zip
-```
-
-That prints the `sparkle:edSignature` and `length` for the item's `<enclosure>`. Automating
-this as part of the release pipeline is tracked separately.
-
-`Scripts/build.sh` codesigns ad hoc (`-s -`), which is fine for local builds, but a
-distributed archive needs a real Developer ID identity and notarization — also tracked
-separately in the release pipeline above.
+Signing archives and adding `<item>` entries is automated — see "Cutting a release" below.
 
 > **One rule worth knowing:** Sparkle accepts an update if *either* the EdDSA key *or* the
 > code signing identity matches the installed copy. Changing one at a time is safe;
 > changing both in the same release breaks auto-update for every existing install
 > permanently.
+
+## Cutting a Release
+
+Releases are cut by pushing a tag. Everything else is automated by
+`.github/workflows/release.yml`:
+
+```sh
+git tag v1.2.3
+git push origin v1.2.3
+```
+
+That builds the app, stamps the version, signs it with Developer ID, notarizes and staples
+it, publishes a GitHub release with generated notes, and commits the new `<item>` to
+`appcast.xml` on `main` so existing installs see the update.
+
+**The git tag is the version source of truth.** `Info.plist` keeps a placeholder version in
+git and the real one is stamped into the bundle at build time, so there's no version-bump
+commit to remember. Tag names are `vX.Y.Z`; the leading `v` is stripped for the bundle
+version. Use [semantic versioning](https://semver.org/) — Sparkle compares versions to
+decide whether an update is newer, so they must increase monotonically.
+
+To check what a release will produce without publishing, build one locally:
+
+```sh
+MARKETING_VERSION=1.2.3 ./Scripts/build.sh release
+```
+
+### Required repository secrets
+
+Set these under Settings → Secrets and variables → Actions. The release workflow is the
+only thing that reads them; CI on pushes and pull requests needs none, so builds from
+forked pull requests keep working.
+
+| Secret | What it is |
+| --- | --- |
+| `GOOGLE_CLIENT_ID` | OAuth client ID, from First-Time Developer Setup above |
+| `GOOGLE_CLIENT_SECRET` | OAuth client secret, from the same place |
+| `SPARKLE_PRIVATE_KEY` | The EdDSA private key, exported with `./bin/generate_keys -x private-key.txt` |
+| `DEVELOPER_ID_CERT_P12` | Developer ID Application certificate and key, exported from Keychain Access as `.p12`, then base64-encoded (`base64 -i cert.p12 \| pbcopy`) |
+| `DEVELOPER_ID_CERT_PASSWORD` | The password set when exporting that `.p12` |
+| `NOTARY_API_KEY_P8` | App Store Connect API key `.p8`, base64-encoded the same way |
+| `NOTARY_API_KEY_ID` | That key's Key ID |
+| `NOTARY_API_ISSUER_ID` | The Issuer ID from App Store Connect → Users and Access → Integrations |
+
+The Developer ID certificate requires an Apple Developer Program membership. Create it as
+**Developer ID Application** (not Mac App Store or Apple Development), and create the
+notarization key under App Store Connect → Users and Access → Integrations → Team Keys.
+
+The app is signed with the hardened runtime, which notarization requires, and is
+deliberately **not** sandboxed: the sandbox would complicate the loopback OAuth listener
+and Keychain access for no benefit outside the Mac App Store. Outside the sandbox the
+hardened runtime needs no entitlements for anything this app does, so there is no
+entitlements file to maintain.
+
+If `main` is protected, the workflow needs permission to push the appcast commit to it.
 
 ## Usage
 
