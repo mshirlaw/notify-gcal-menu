@@ -1,0 +1,5 @@
+.build/
+build/
+.swiftpm/
+Sources/NotifyGCalMenu/Resources/Secrets.plist
+.DS_Store
