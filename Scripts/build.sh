@@ -11,6 +11,16 @@ BUNDLE_ID="com.notifygcalmenu.menu"
 APP_NAME="NotifyGCalMenu"
 BUILD_DIR="build"
 APP_BUNDLE="$BUILD_DIR/$APP_NAME.app"
+SECRETS="Sources/$APP_NAME/Resources/Secrets.plist"
+
+# Package.swift declares Secrets.plist as a resource, so its absence isn't a missing-file
+# warning at runtime — it fails the build outright ("type 'Bundle' has no member 'module'").
+# A fresh clone has no copy, since it's gitignored, so seed one from the example: that keeps
+# `swift build` working for new contributors and for PR CI, which has no access to secrets.
+if [ ! -f "$SECRETS" ]; then
+    echo "Creating $SECRETS from the example (placeholder credentials — see README)..."
+    cp "$SECRETS.example" "$SECRETS"
+fi
 
 echo "Building ($CONFIGURATION)..."
 swift build -c "$CONFIGURATION"
@@ -23,6 +33,16 @@ mkdir -p "$APP_BUNDLE/Contents/MacOS" "$APP_BUNDLE/Contents/Resources"
 cp "$BIN_PATH/$APP_NAME" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 cp Info.plist "$APP_BUNDLE/Contents/Info.plist"
 cp AppIcon.icns "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
+
+# The git tag is the version source of truth (see README, "Cutting a release"), so the
+# version is stamped into the bundle's copy of Info.plist rather than committed. The tracked
+# Info.plist keeps its placeholder, which means no version-bump commit before every tag.
+# Sparkle compares CFBundleVersion, so both keys have to move together or updates stall.
+if [ -n "${MARKETING_VERSION:-}" ]; then
+    echo "Stamping version $MARKETING_VERSION..."
+    plutil -replace CFBundleShortVersionString -string "$MARKETING_VERSION" "$APP_BUNDLE/Contents/Info.plist"
+    plutil -replace CFBundleVersion -string "$MARKETING_VERSION" "$APP_BUNDLE/Contents/Info.plist"
+fi
 
 RESOURCE_BUNDLE="$BIN_PATH/${APP_NAME}_${APP_NAME}.bundle"
 if [ -d "$RESOURCE_BUNDLE" ]; then
@@ -44,24 +64,40 @@ else
     exit 1
 fi
 
-echo "Codesigning (ad hoc)..."
+# Ad hoc by default, which is all a local build needs. The release workflow passes a real
+# Developer ID identity, which additionally requires the hardened runtime and a secure
+# timestamp — notarization rejects the bundle without both. Neither flag is valid ad hoc.
+# No --entitlements anywhere: the app is deliberately not sandboxed (see issue #12), and
+# outside the sandbox the hardened runtime needs no entitlement for Keychain access, the
+# Calendar API, or the loopback OAuth listener. Sparkle's XPC services ship with empty
+# entitlements too, so re-signing them below strips nothing.
+if [ "${CODESIGN_IDENTITY:--}" = "-" ]; then
+    echo "Codesigning (ad hoc)..."
+    SIGN=(codesign --force -s -)
+else
+    echo "Codesigning (Developer ID, hardened runtime)..."
+    SIGN=(codesign --force -s "$CODESIGN_IDENTITY" --options runtime --timestamp)
+fi
+
 # Sign inside-out: nested code first, container last. --deep is deliberately not used to
 # sign. It re-signs nested code with this command's --identifier, which would stamp
 # com.notifygcalmenu.menu over Sparkle's own org.sparkle-project.* identifiers — and
 # Sparkle looks its installer XPC service up by identifier, so updates would download and
 # then fail to install. (--deep remains correct for *verifying*, below.)
 SPARKLE_BUNDLED="$APP_BUNDLE/Contents/Frameworks/Sparkle.framework"
-codesign --force -s - "$SPARKLE_BUNDLED/Versions/B/XPCServices/Downloader.xpc"
-codesign --force -s - "$SPARKLE_BUNDLED/Versions/B/XPCServices/Installer.xpc"
-codesign --force -s - "$SPARKLE_BUNDLED/Versions/B/Updater.app"
-codesign --force -s - "$SPARKLE_BUNDLED/Versions/B/Autoupdate"
-codesign --force -s - "$SPARKLE_BUNDLED"
-codesign --force --identifier "$BUNDLE_ID" -s - "$APP_BUNDLE"
+"${SIGN[@]}" "$SPARKLE_BUNDLED/Versions/B/XPCServices/Downloader.xpc"
+"${SIGN[@]}" "$SPARKLE_BUNDLED/Versions/B/XPCServices/Installer.xpc"
+"${SIGN[@]}" "$SPARKLE_BUNDLED/Versions/B/Updater.app"
+"${SIGN[@]}" "$SPARKLE_BUNDLED/Versions/B/Autoupdate"
+"${SIGN[@]}" "$SPARKLE_BUNDLED"
+"${SIGN[@]}" --identifier "$BUNDLE_ID" "$APP_BUNDLE"
 codesign --verify --strict --deep "$APP_BUNDLE"
 
 echo "Done: $APP_BUNDLE"
 
-if [ "$CONFIGURATION" = "release" ]; then
+# Installing to /Applications and launching is a local convenience. On CI a release build is
+# an artifact to be notarized and uploaded, so skip it there ($CI is set by GitHub Actions).
+if [ "$CONFIGURATION" = "release" ] && [ -z "${CI:-}" ]; then
     INSTALLED_APP="/Applications/$APP_NAME.app"
     LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 
