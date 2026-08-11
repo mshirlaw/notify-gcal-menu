@@ -6,4 +6,5 @@ enum Log {
     static let auth = Logger(subsystem: "com.notifygcalmenu.app", category: "auth")
     static let calendar = Logger(subsystem: "com.notifygcalmenu.app", category: "calendar")
     static let notifications = Logger(subsystem: "com.notifygcalmenu.app", category: "notifications")
+    static let updates = Logger(subsystem: "com.notifygcalmenu.app", category: "updates")
 }

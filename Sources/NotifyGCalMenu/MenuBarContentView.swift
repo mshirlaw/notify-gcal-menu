@@ -3,6 +3,7 @@ import SwiftUI
 
 struct MenuBarContentView: View {
     @ObservedObject var appModel: AppModel
+    @ObservedObject var updater: UpdaterManager
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
