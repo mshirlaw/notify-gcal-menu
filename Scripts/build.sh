@@ -31,8 +31,34 @@ else
     echo "Warning: resource bundle not found at $RESOURCE_BUNDLE (Secrets.plist won't load)" >&2
 fi
 
+# SwiftPM has no "Embed Frameworks" build phase, so Sparkle.framework has to be copied in
+# by hand and the executable given an rpath pointing at it, or dyld can't find it at
+# launch. Both must happen before codesigning: install_name_tool invalidates signatures.
+SPARKLE_FRAMEWORK="$BIN_PATH/Sparkle.framework"
+if [ -d "$SPARKLE_FRAMEWORK" ]; then
+    mkdir -p "$APP_BUNDLE/Contents/Frameworks"
+    ditto "$SPARKLE_FRAMEWORK" "$APP_BUNDLE/Contents/Frameworks/Sparkle.framework"
+    install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
+else
+    echo "Warning: Sparkle.framework not found at $SPARKLE_FRAMEWORK (auto-update won't work)" >&2
+fi
+
 echo "Codesigning (ad hoc)..."
-codesign --force --deep --identifier "$BUNDLE_ID" -s - "$APP_BUNDLE"
+# Sign inside-out: nested code first, container last. --deep is deliberately not used to
+# sign. It re-signs nested code with this command's --identifier, which would stamp
+# com.notifygcalmenu.menu over Sparkle's own org.sparkle-project.* identifiers — and
+# Sparkle looks its installer XPC service up by identifier, so updates would download and
+# then fail to install. (--deep remains correct for *verifying*, below.)
+SPARKLE_BUNDLED="$APP_BUNDLE/Contents/Frameworks/Sparkle.framework"
+if [ -d "$SPARKLE_BUNDLED" ]; then
+    codesign --force -s - "$SPARKLE_BUNDLED/Versions/B/XPCServices/Downloader.xpc"
+    codesign --force -s - "$SPARKLE_BUNDLED/Versions/B/XPCServices/Installer.xpc"
+    codesign --force -s - "$SPARKLE_BUNDLED/Versions/B/Updater.app"
+    codesign --force -s - "$SPARKLE_BUNDLED/Versions/B/Autoupdate"
+    codesign --force -s - "$SPARKLE_BUNDLED"
+fi
+codesign --force --identifier "$BUNDLE_ID" -s - "$APP_BUNDLE"
+codesign --verify --strict --deep "$APP_BUNDLE"
 
 echo "Done: $APP_BUNDLE"
 
