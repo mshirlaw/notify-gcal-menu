@@ -1,0 +1,142 @@
+name: Release
+
+# Cutting a release is `git tag v1.2.3 && git push origin v1.2.3` — everything below is
+# downstream of that. See README, "Cutting a release", for the required repository secrets.
+on:
+  push:
+    tags: ["v*"]
+
+# Needed to create the GitHub release and to push the appcast update back to main.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Derive version from tag
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      # Fail before spending ten minutes on notarization. Publishing while the key is still
+      # a placeholder produces a release that no installed copy can ever verify, and the
+      # appcast entry would be signed by a key the shipped app doesn't trust.
+      - name: Check the Sparkle public key is configured
+        run: |
+          if grep -q YOUR_SPARKLE_PUBLIC_KEY Info.plist; then
+            echo "::error::Info.plist still has the placeholder SUPublicEDKey. See README, 'Enabling Auto-Update'."
+            exit 1
+          fi
+
+      # Written from secrets rather than committed, so rotating credentials doesn't need a
+      # code change. The example file is the template, so the plist structure lives in one
+      # place. Values go through plutil arguments, never through the log.
+      - name: Write Secrets.plist
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+        run: |
+          SECRETS=Sources/NotifyGCalMenu/Resources/Secrets.plist
+          cp "$SECRETS.example" "$SECRETS"
+          plutil -replace GoogleClientID -string "$GOOGLE_CLIENT_ID" "$SECRETS"
+          plutil -replace GoogleClientSecret -string "$GOOGLE_CLIENT_SECRET" "$SECRETS"
+
+      # A throwaway keychain, not the runner's login keychain: it is destroyed with the VM,
+      # and keeping it separate means the import can't silently pick up anything else.
+      - name: Import Developer ID certificate
+        env:
+          CERT_P12: ${{ secrets.DEVELOPER_ID_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          echo "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          # Without this, codesign blocks on a GUI prompt to authorize key access.
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
+          # Prepend, keeping the defaults: codesign only searches the listed keychains.
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/cert.p12"
+          # The SHA-1 hash identifies the cert unambiguously, so the identity's display
+          # name doesn't have to be maintained as a secret alongside the certificate.
+          IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN" | awk '/Developer ID Application/ { print $2; exit }')"
+          if [ -z "$IDENTITY" ]; then
+            echo "::error::No Developer ID Application identity in the imported certificate."
+            exit 1
+          fi
+          echo "CODESIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+
+      - name: Build, stamp version, and sign
+        run: ./Scripts/build.sh release
+
+      - name: Notarize and staple
+        env:
+          NOTARY_KEY_P8: ${{ secrets.NOTARY_API_KEY_P8 }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_API_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_API_ISSUER_ID }}
+        run: |
+          echo "$NOTARY_KEY_P8" | base64 --decode > "$RUNNER_TEMP/notary.p8"
+          ditto -c -k --keepParent build/NotifyGCalMenu.app "$RUNNER_TEMP/submission.zip"
+          # --wait makes a rejected submission fail the job instead of publishing silently.
+          xcrun notarytool submit "$RUNNER_TEMP/submission.zip" \
+            --key "$RUNNER_TEMP/notary.p8" \
+            --key-id "$NOTARY_KEY_ID" \
+            --issuer "$NOTARY_ISSUER_ID" \
+            --wait
+          rm "$RUNNER_TEMP/notary.p8"
+          # Stapling writes the ticket into the .app, so the archive users download has to
+          # be rebuilt from the stapled bundle — the submitted one doesn't have the ticket,
+          # and without it Gatekeeper has to reach Apple on first launch.
+          xcrun stapler staple build/NotifyGCalMenu.app
+          ditto -c -k --keepParent build/NotifyGCalMenu.app "NotifyGCalMenu-$VERSION.zip"
+          spctl --assess --type execute -vv build/NotifyGCalMenu.app
+
+      # One step because the EdDSA signature is needed by both the release and the appcast,
+      # and passing it between steps would put it through the environment for no reason.
+      - name: Publish release and update the appcast
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ZIP="NotifyGCalMenu-$VERSION.zip"
+          # sign_update ships inside the Sparkle SwiftPM artifact that the build just
+          # fetched, so there's no second copy of the tools to keep in step with the
+          # framework version. Located rather than hardcoded: this step runs after
+          # notarization, and a SwiftPM layout change should not strand a signed build.
+          SIGN_UPDATE="$(find .build/artifacts -name sign_update -type f | head -1)"
+          if [ -z "$SIGN_UPDATE" ]; then
+            echo "::error::sign_update not found under .build/artifacts."
+            exit 1
+          fi
+          # Prints the enclosure's signature and length attributes verbatim, ready to splice in.
+          SIGNATURE="$(echo "$SPARKLE_PRIVATE_KEY" | "$SIGN_UPDATE" --ed-key-file - "$ZIP")"
+
+          gh release create "$GITHUB_REF_NAME" "$ZIP" --title "$VERSION" --generate-notes
+
+          # The extra indentation below is stripped by the YAML block scalar, so what lands
+          # in item.xml is indented to match the surrounding <channel> in appcast.xml.
+          cat > "$RUNNER_TEMP/item.xml" <<EOF
+              <item>
+                <title>$VERSION</title>
+                <pubDate>$(LC_ALL=C date "+%a, %d %b %Y %H:%M:%S %z")</pubDate>
+                <sparkle:releaseNotesLink>https://github.com/$GITHUB_REPOSITORY/releases/tag/$GITHUB_REF_NAME</sparkle:releaseNotesLink>
+                <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+                <enclosure url="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/$ZIP" sparkle:version="$VERSION" sparkle:shortVersionString="$VERSION" type="application/octet-stream" $SIGNATURE />
+              </item>
+          EOF
+
+          # The feed is served from main, but a tag push checks out a detached HEAD, so
+          # start from main explicitly. That also keeps this correct when a tag is cut from
+          # an older commit. The marker comment in appcast.xml is the insertion point, and
+          # `sed r` appends after it, which puts the newest release at the top of the feed.
+          git fetch origin main
+          git checkout -B main origin/main
+          sed -i '' -e "/<!-- Releases are added here/r $RUNNER_TEMP/item.xml" appcast.xml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: add $GITHUB_REF_NAME to the appcast" appcast.xml
+          git push origin main
