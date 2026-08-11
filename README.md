@@ -71,6 +71,50 @@ To iterate on the code without rebuilding the bundle each time, `swift run` also
 sign-in and notification permissions are more reliable from the assembled `.app` (see
 Troubleshooting).
 
+## Enabling Auto-Update
+
+The app ships with Sparkle wired up but switched off: `SUPublicEDKey` in `Info.plist` is a
+placeholder, and until it holds a real key the updater never starts and the popover hides
+its "Check for Updates…" row. Two steps activate it, and only the first needs a human.
+
+### 1. Generate the signing key (once, by the maintainer)
+
+Download the Sparkle release tools from
+[sparkle-project/Sparkle releases](https://github.com/sparkle-project/Sparkle/releases)
+and run:
+
+```sh
+./bin/generate_keys
+```
+
+This stores the private key in your login Keychain and prints the public key. Paste that
+public key into `Info.plist` as `SUPublicEDKey`, replacing `YOUR_SPARKLE_PUBLIC_KEY`.
+
+The private key never leaves your Keychain and must never be committed. Back it up
+(`./bin/generate_keys -x private-key.txt`) somewhere safe — losing it means no existing
+install can be updated again.
+
+### 2. Publish releases
+
+`appcast.xml` in the repository root is the update feed, served directly by GitHub at
+`https://raw.githubusercontent.com/mshirlaw/notify-gcal-menu/main/appcast.xml` — no GitHub
+Pages or other hosting required. It starts with no entries, which Sparkle reads as "you're
+up to date".
+
+For each release, sign the distributed archive and add an `<item>` to `appcast.xml`:
+
+```sh
+./bin/sign_update NotifyGCalMenu.zip
+```
+
+That prints the `sparkle:edSignature` and `length` for the item's `<enclosure>`. Automating
+this as part of the release pipeline is tracked separately.
+
+> **One rule worth knowing:** Sparkle accepts an update if *either* the EdDSA key *or* the
+> code signing identity matches the installed copy. Changing one at a time is safe;
+> changing both in the same release breaks auto-update for every existing install
+> permanently.
+
 ## Usage
 
 - Click the bell icon to open the menu
