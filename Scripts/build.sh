@@ -40,7 +40,8 @@ if [ -d "$SPARKLE_FRAMEWORK" ]; then
     ditto "$SPARKLE_FRAMEWORK" "$APP_BUNDLE/Contents/Frameworks/Sparkle.framework"
     install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 else
-    echo "Warning: Sparkle.framework not found at $SPARKLE_FRAMEWORK (auto-update won't work)" >&2
+    echo "Error: Sparkle.framework not found at $SPARKLE_FRAMEWORK; the app links it and will not launch" >&2
+    exit 1
 fi
 
 echo "Codesigning (ad hoc)..."
@@ -50,13 +51,11 @@ echo "Codesigning (ad hoc)..."
 # Sparkle looks its installer XPC service up by identifier, so updates would download and
 # then fail to install. (--deep remains correct for *verifying*, below.)
 SPARKLE_BUNDLED="$APP_BUNDLE/Contents/Frameworks/Sparkle.framework"
-if [ -d "$SPARKLE_BUNDLED" ]; then
-    codesign --force -s - "$SPARKLE_BUNDLED/Versions/B/XPCServices/Downloader.xpc"
-    codesign --force -s - "$SPARKLE_BUNDLED/Versions/B/XPCServices/Installer.xpc"
-    codesign --force -s - "$SPARKLE_BUNDLED/Versions/B/Updater.app"
-    codesign --force -s - "$SPARKLE_BUNDLED/Versions/B/Autoupdate"
-    codesign --force -s - "$SPARKLE_BUNDLED"
-fi
+codesign --force -s - "$SPARKLE_BUNDLED/Versions/B/XPCServices/Downloader.xpc"
+codesign --force -s - "$SPARKLE_BUNDLED/Versions/B/XPCServices/Installer.xpc"
+codesign --force -s - "$SPARKLE_BUNDLED/Versions/B/Updater.app"
+codesign --force -s - "$SPARKLE_BUNDLED/Versions/B/Autoupdate"
+codesign --force -s - "$SPARKLE_BUNDLED"
 codesign --force --identifier "$BUNDLE_ID" -s - "$APP_BUNDLE"
 codesign --verify --strict --deep "$APP_BUNDLE"
 

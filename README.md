@@ -15,16 +15,18 @@ if there isn't one.
 
 ## Project Contents
 
-- `Package.swift`: Swift Package Manager manifest (macOS 13+, one executable target)
+- `Package.swift`: Swift Package Manager manifest (macOS 13+, one executable target, depends on Sparkle)
 - `Sources/NotifyGCalMenu/`
   - `NotifyGCalMenuApp.swift` / `MenuBarContentView.swift` / `AppModel.swift`: the menu bar UI and its state
   - `GoogleAuthManager.swift` / `LoopbackHTTPServer.swift` / `PKCE.swift` / `KeychainStore.swift`: OAuth sign-in/out and token storage
   - `CalendarService.swift` / `CalendarModels.swift`: talks to the Calendar API
   - `EventChecker.swift` / `SettingsStore.swift`: the polling loop, lead-time setting, and notified-event dedup
   - `NotificationManager.swift` / `ToneEngine.swift` / `EventLinkOpener.swift`: notifications, the chime, and opening links from them
+  - `UpdaterManager.swift`: the only file that imports Sparkle; wraps `SPUStandardUpdaterController` and guards on the placeholder key
   - `Resources/Secrets.plist`: your OAuth client credentials (gitignored — see setup below)
 - `Info.plist`: app bundle metadata (menu-bar-only, no Dock icon)
 - `Scripts/build.sh`: builds the package and assembles it into a runnable `.app`
+- `appcast.xml`: the Sparkle update feed, hosted from the repo root
 
 ## First-Time Developer Setup
 
@@ -110,6 +112,10 @@ For each release, sign the distributed archive and add an `<item>` to `appcast.x
 That prints the `sparkle:edSignature` and `length` for the item's `<enclosure>`. Automating
 this as part of the release pipeline is tracked separately.
 
+`Scripts/build.sh` codesigns ad hoc (`-s -`), which is fine for local builds, but a
+distributed archive needs a real Developer ID identity and notarization — also tracked
+separately in the release pipeline above.
+
 > **One rule worth knowing:** Sparkle accepts an update if *either* the EdDSA key *or* the
 > code signing identity matches the installed copy. Changing one at a time is safe;
 > changing both in the same release breaks auto-update for every existing install
@@ -123,6 +129,8 @@ this as part of the release pipeline is tracked separately.
 - "Notify me" controls how far ahead of an event start you get notified
 - "Check now" runs an immediate check instead of waiting for the next cycle, and lists
   today's remaining events
+- "Check for Updates…" asks Sparkle to check right away; it only appears once a real
+  Sparkle key is configured (see Enabling Auto-Update above), hidden by default
 - "Sign out" revokes the app's access to your calendar and clears the stored refresh token
 
 ## Notes / Limitations

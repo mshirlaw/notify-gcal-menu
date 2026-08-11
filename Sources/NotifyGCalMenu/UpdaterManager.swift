@@ -4,7 +4,7 @@ import Sparkle
 /// Thin wrapper around `SPUStandardUpdaterController` so no other file imports Sparkle.
 ///
 /// Stays dormant until `SUPublicEDKey` in Info.plist is replaced with a real EdDSA public
-/// key (see README, "Enabling auto-update"). That guard is not cosmetic:
+/// key (see README, "Enabling Auto-Update"). That guard is not cosmetic:
 /// `SPUStandardUpdaterController` treats an unparseable key as a fatal startup error and
 /// puts a modal alert on screen a second after every launch.
 @MainActor
@@ -18,7 +18,8 @@ final class UpdaterManager: NSObject, ObservableObject, SPUStandardUserDriverDel
     private var controller: SPUStandardUpdaterController?
 
     override init() {
-        let key = Bundle.main.object(forInfoDictionaryKey: "SUPublicEDKey") as? String ?? ""
+        let key = (Bundle.main.object(forInfoDictionaryKey: "SUPublicEDKey") as? String ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         isEnabled = !key.isEmpty && key != Self.publicKeyPlaceholder
         super.init()
 
