@@ -48,7 +48,7 @@ final class EventChecker {
 
             settings.saveNotifiedEventIds(notifiedEventIds)
         } catch {
-            print("[Notify GCal] check failed:", error.localizedDescription)
+            Log.calendar.error("check failed: \(error.localizedDescription)")
         }
     }
 

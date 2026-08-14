@@ -69,7 +69,7 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func leadMinutesChanged(to newValue: Int) {
+    func setLeadMinutes(_ newValue: Int) {
         leadMinutes = newValue
         settings.leadMinutes = newValue
     }
