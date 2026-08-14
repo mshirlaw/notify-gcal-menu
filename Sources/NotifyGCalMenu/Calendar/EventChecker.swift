@@ -56,7 +56,13 @@ final class EventChecker {
         }
     }
 
-    // Internal rather than private so it's directly testable via @testable import.
+    /**
+     * Internal rather than private so it's directly testable via @testable import.
+     *
+     * All-day events (`startDate == nil`) intentionally never fire: they have no specific
+     * start time to apply a lead-time countdown to, so "starting soon" doesn't have a
+     * meaningful answer for them. This is a deliberate product decision, not a gap.
+     */
     func isEventStartingSoon(_ event: CalendarEvent, leadMinutes: Int) -> Bool {
         guard let start = event.startDate else { return false }
         let secondsUntilStart = start.timeIntervalSinceNow
