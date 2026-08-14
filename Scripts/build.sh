@@ -24,6 +24,16 @@ cp "$BIN_PATH/$APP_NAME" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 cp Info.plist "$APP_BUNDLE/Contents/Info.plist"
 cp AppIcon.icns "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
 
+# The git tag is the version source of truth (see README, "Cutting a Release"), so the
+# tracked Info.plist keeps a placeholder and the real version is stamped into the bundle's
+# copy at build time — no version-bump commit needed before tagging a release. Both keys
+# move together since Sparkle (once wired up) compares CFBundleVersion for update checks.
+if [ -n "${MARKETING_VERSION:-}" ]; then
+    echo "Stamping version $MARKETING_VERSION..."
+    plutil -replace CFBundleShortVersionString -string "$MARKETING_VERSION" "$APP_BUNDLE/Contents/Info.plist"
+    plutil -replace CFBundleVersion -string "$MARKETING_VERSION" "$APP_BUNDLE/Contents/Info.plist"
+fi
+
 RESOURCE_BUNDLE="$BIN_PATH/${APP_NAME}_${APP_NAME}.bundle"
 if [ -d "$RESOURCE_BUNDLE" ]; then
     cp -R "$RESOURCE_BUNDLE" "$APP_BUNDLE/Contents/Resources/"

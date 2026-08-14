@@ -71,13 +71,44 @@ To iterate on the code without rebuilding the bundle each time, `swift run` also
 sign-in and notification permissions are more reliable from the assembled `.app` (see
 Troubleshooting).
 
+## Cutting a Release
+
+**The git tag is the version source of truth.** `Info.plist` keeps a placeholder version
+(`1.0`) in git; the real version is stamped into the built bundle's copy of `Info.plist` at
+build time, so there's no version-bump commit to remember before tagging. Use
+[semantic versioning](https://semver.org/) for tags (`vX.Y.Z`) — both `CFBundleVersion` and
+`CFBundleShortVersionString` are stamped together, since an eventual auto-update mechanism
+would compare `CFBundleVersion` to detect newer releases.
+
+To build a release with a specific version stamped in:
+
+```sh
+MARKETING_VERSION=1.2.3 ./Scripts/build.sh release
+```
+
+To actually cut a release today (manual, since there's no CI/signing pipeline yet — see
+#12/#13/#17 for that automation):
+
+```sh
+git tag v1.2.3
+git push origin v1.2.3
+MARKETING_VERSION=1.2.3 ./Scripts/build.sh release
+ditto -c -k --keepParent build/NotifyGCalMenu.app NotifyGCalMenu-1.2.3.zip
+gh release create v1.2.3 NotifyGCalMenu-1.2.3.zip --title 1.2.3 --generate-notes
+```
+
+This produces an **ad-hoc signed** build, not a Developer ID-signed and notarized one —
+anyone downloading it will need to right-click → Open (or approve it in System
+Settings → Privacy & Security) to bypass Gatekeeper's unidentified-developer warning.
+Proper signing and notarization are tracked in #12.
+
 ## Usage
 
 - Click the bell icon to open the menu
 - "Sign in with Google" starts the OAuth flow in your default browser; approve the
   requested read-only calendar access and the browser tab will confirm you can close it
 - "Notify me" controls how far ahead of an event start you get notified
-- "Check now" runs an immediate check instead of waiting for the next cycle, and lists
+- "Sync Now" runs an immediate check instead of waiting for the next cycle, and lists
   today's remaining events
 - "Sign out" revokes the app's access to your calendar and clears the stored refresh token
 
