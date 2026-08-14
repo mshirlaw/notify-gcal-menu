@@ -17,7 +17,7 @@ struct MenuBarContentView: View {
 
             Divider()
 
-            actionRow(title: "Sync Now", shortcut: "⌘S") {
+            actionRow(title: "Sync Now", systemImage: "arrow.clockwise", shortcut: "⌘S") {
                 Task { await appModel.checkNow() }
             }
             .keyboardShortcut("s", modifiers: .command)
@@ -47,7 +47,7 @@ struct MenuBarContentView: View {
 
             Divider()
 
-            actionRow(title: "Quit", shortcut: "⌘Q") {
+            actionRow(title: "Quit", systemImage: "power", shortcut: "⌘Q", emphasized: false) {
                 NSApplication.shared.terminate(nil)
             }
             .keyboardShortcut("q", modifiers: .command)
@@ -75,14 +75,18 @@ struct MenuBarContentView: View {
                 .foregroundStyle(.secondary)
             Spacer()
             if appModel.isSignedIn {
-                Button("Sign out") {
+                Button {
                     Task { await appModel.signOut() }
+                } label: {
+                    Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.tint)
             } else {
-                Button("Sign in with Google") {
+                Button {
                     Task { await appModel.signIn() }
+                } label: {
+                    Label("Sign in with Google", systemImage: "person.crop.circle.badge.checkmark")
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.tint)
@@ -121,16 +125,26 @@ struct MenuBarContentView: View {
         .padding(.vertical, 8)
     }
 
-    private func actionRow(title: String, shortcut: String, action: @escaping () -> Void) -> some View {
+    /// `emphasized` lowers the row's text/icon weight for lower-priority or terminal
+    /// actions (e.g. Quit), so it doesn't compete visually with everyday actions like
+    /// Sync Now — differentiating by consequence rather than by identical styling.
+    private func actionRow(
+        title: String,
+        systemImage: String,
+        shortcut: String,
+        emphasized: Bool = true,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             HoverHighlight {
                 HStack {
-                    Text(title)
+                    Label(title, systemImage: systemImage)
                     Spacer()
                     Text(shortcut)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                .foregroundStyle(emphasized ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
                 .padding(.horizontal, horizontalPadding)
                 .padding(.vertical, 8)
                 .frame(maxWidth: .infinity, alignment: .leading)
