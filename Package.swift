@@ -10,6 +10,11 @@ let package = Package(
             path: "Sources/NotifyGCalMenu",
             exclude: ["Resources/Secrets.plist.example"],
             resources: [.copy("Resources/Secrets.plist")]
+        ),
+        .testTarget(
+            name: "NotifyGCalMenuTests",
+            dependencies: ["NotifyGCalMenu"],
+            path: "Tests/NotifyGCalMenuTests"
         )
     ]
 )
