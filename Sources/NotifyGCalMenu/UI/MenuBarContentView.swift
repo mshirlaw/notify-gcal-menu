@@ -102,6 +102,7 @@ struct MenuBarContentView: View {
                 .font(.caption2)
                 .fontWeight(.semibold)
                 .foregroundStyle(.secondary)
+                .accessibilityAddTraits(.isHeader)
 
             Label("Notify me", systemImage: "bell")
 
@@ -120,6 +121,9 @@ struct MenuBarContentView: View {
             }
             .pickerStyle(.menu)
             .labelsHidden()
+            // Its visual label above is a separate Text, not a SwiftUI Label, so
+            // .labelsHidden() leaves VoiceOver with no context for the picker on its own.
+            .accessibilityLabel("Notify me")
         }
         .padding(.horizontal, horizontalPadding)
         .padding(.vertical, 8)
@@ -143,6 +147,9 @@ struct MenuBarContentView: View {
                     Text(shortcut)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        // Decorative: the real shortcut is wired via .keyboardShortcut
+                        // below. Reading the glyph aloud adds noise, not information.
+                        .accessibilityHidden(true)
                 }
                 .foregroundStyle(emphasized ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
                 .padding(.horizontal, horizontalPadding)
