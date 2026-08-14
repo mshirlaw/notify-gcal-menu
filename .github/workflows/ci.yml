@@ -25,8 +25,11 @@ jobs:
             cp "$SECRETS.example" "$SECRETS"
           fi
 
-      - name: Build
-        run: swift build
+      # build.sh, not `swift build`: it also assembles and codesigns the .app, embedding
+      # Sparkle.framework with the correct rpath and nested signing order — the parts that
+      # actually break are far more likely to be there than in compilation.
+      - name: Build and assemble the app
+        run: ./Scripts/build.sh
 
       - name: Test
         run: swift test
