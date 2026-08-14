@@ -1,7 +1,9 @@
 import Foundation
 import Security
 
-/// Minimal wrapper around the macOS Keychain for storing the Google refresh token.
+/**
+ * Minimal wrapper around the macOS Keychain for storing the Google refresh token.
+ */
 enum KeychainStore {
     private static let service = "com.notifygcalmenu.google-refresh-token"
 

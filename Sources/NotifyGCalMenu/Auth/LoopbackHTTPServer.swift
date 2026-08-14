@@ -1,13 +1,15 @@
 import Darwin
 import Foundation
 
-/// A one-shot local HTTP listener used to capture Google's OAuth redirect, per the loopback
-/// interception pattern for installed apps (RFC 8252). Handles exactly one request, then stops.
-///
-/// This is built on raw POSIX sockets rather than Network.framework: on machines running
-/// endpoint security software with a network-monitoring system extension (observed here with
-/// SentinelOne), `NWListener` reliably fails with `EINVAL` even for a plain loopback listener,
-/// while direct `socket`/`bind`/`listen` calls are unaffected.
+/**
+ * A one-shot local HTTP listener used to capture Google's OAuth redirect, per the loopback
+ * interception pattern for installed apps (RFC 8252). Handles exactly one request, then stops.
+ *
+ * This is built on raw POSIX sockets rather than Network.framework: on machines running
+ * endpoint security software with a network-monitoring system extension (observed here with
+ * SentinelOne), `NWListener` reliably fails with `EINVAL` even for a plain loopback listener,
+ * while direct `socket`/`bind`/`listen` calls are unaffected.
+ */
 final class LoopbackHTTPServer: @unchecked Sendable {
     enum LoopbackError: Error, LocalizedError {
         case socketError(String)
@@ -29,7 +31,9 @@ final class LoopbackHTTPServer: @unchecked Sendable {
 
     private var listenSocket: Int32 = -1
 
-    /// Starts a TCP listener bound only to 127.0.0.1, on an ephemeral port.
+    /**
+     * Starts a TCP listener bound only to 127.0.0.1, on an ephemeral port.
+     */
     func start() throws -> UInt16 {
         let sock = socket(AF_INET, SOCK_STREAM, 0)
         guard sock >= 0 else { throw LoopbackError.socketError("socket(): \(lastErrorMessage())") }
@@ -74,8 +78,10 @@ final class LoopbackHTTPServer: @unchecked Sendable {
         return port
     }
 
-    /// Blocks (on a background thread) until a client connects, then parses its request,
-    /// validates `state`, and returns the authorization code.
+    /**
+     * Blocks (on a background thread) until a client connects, then parses its request,
+     * validates `state`, and returns the authorization code.
+     */
     func waitForRedirect(expectedState: String) async throws -> String {
         let socket = listenSocket
         guard socket >= 0 else { throw LoopbackError.invalidRequest }

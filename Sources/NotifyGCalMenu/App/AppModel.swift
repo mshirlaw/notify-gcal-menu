@@ -1,7 +1,9 @@
 import Foundation
 
-/// Central state for the menu bar UI: sign-in status, the lead-time setting, today's
-/// remaining events, and a status message, mirroring popup.js's responsibilities.
+/**
+ * Central state for the menu bar UI: sign-in status, the lead-time setting, today's 
+ * remaining events, and a status message, mirroring popup.js's responsibilities.
+ */
 @MainActor
 final class AppModel: ObservableObject {
     @Published private(set) var isSignedIn = false

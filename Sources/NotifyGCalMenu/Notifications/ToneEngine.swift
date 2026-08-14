@@ -1,7 +1,9 @@
 import AVFoundation
 
-/// Synthesizes a short two-tone chime, mirroring notify-gcal's Web Audio chime, so a
-/// distinct sound plays even if System Settings has the default notification sound muted.
+/**
+ * Synthesizes a short two-tone chime, mirroring notify-gcal's Web Audio chime, so a
+ * distinct sound plays even if System Settings has the default notification sound muted.
+ */
 final class ToneEngine {
     static let shared = ToneEngine()
 

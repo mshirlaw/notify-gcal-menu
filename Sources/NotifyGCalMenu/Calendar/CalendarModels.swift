@@ -1,6 +1,8 @@
 import Foundation
 
-/// A Calendar API event resource, trimmed to the fields this app uses.
+/**
+ * A Calendar API event resource, trimmed to the fields this app uses.
+ */
 struct CalendarEvent: Codable, Identifiable {
     struct EventDateTime: Codable {
         let dateTime: String?
@@ -38,7 +40,9 @@ struct CalendarEvent: Codable, Identifiable {
             ?? ISO8601DateFormatter.calendarFormatter.date(from: dateTime)
     }
 
-    /// The video call link, covering Google Meet and other conferencing providers.
+    /**
+     * The video call link, covering Google Meet and other conferencing providers.
+     */
     var videoConferenceLink: String? {
         if let hangoutLink { return hangoutLink }
         return conferenceData?.entryPoints?.first { $0.entryPointType == "video" }?.uri
@@ -69,7 +73,9 @@ extension DateFormatter {
     }()
 }
 
-/// A display-ready summary of an event, without exposing the full API resource.
+/**
+ * A display-ready summary of an event, without exposing the full API resource.
+ */
 struct EventSummary: Identifiable {
     let id: String
     let title: String
