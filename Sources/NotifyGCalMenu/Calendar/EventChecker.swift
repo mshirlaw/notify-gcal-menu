@@ -1,7 +1,9 @@
 import Foundation
 
-/// Polls the primary calendar for events starting soon and fires a notification for each
-/// one not already notified, mirroring background.js's checkUpcomingEvents.
+/**
+ * Polls the primary calendar for events starting soon and fires a notification for each
+ * one not already notified, mirroring background.js's checkUpcomingEvents.
+ */
 @MainActor
 final class EventChecker {
     private let calendarService = CalendarService()
@@ -23,8 +25,10 @@ final class EventChecker {
         pollingTask = nil
     }
 
-    /// Forgets previously notified events, runs an immediate check, and returns today's
-    /// remaining events so the menu can show what was seen.
+    /**
+     * Forgets previously notified events, runs an immediate check, and returns today's
+     * remaining events so the menu can show what was seen.
+     */
     func checkNow() async throws -> [EventSummary] {
         settings.saveNotifiedEventIds([:])
         await runCheck()

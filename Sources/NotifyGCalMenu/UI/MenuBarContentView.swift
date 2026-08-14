@@ -129,9 +129,11 @@ struct MenuBarContentView: View {
         .padding(.vertical, 8)
     }
 
-    /// `emphasized` lowers the row's text/icon weight for lower-priority or terminal
-    /// actions (e.g. Quit), so it doesn't compete visually with everyday actions like
-    /// Sync Now — differentiating by consequence rather than by identical styling.
+    /**
+     * `emphasized` lowers the row's text/icon weight for lower-priority or terminal
+     * actions (e.g. Quit), so it doesn't compete visually with everyday actions like
+     * Sync Now — differentiating by consequence rather than by identical styling.
+     */
     private func actionRow(
         title: String,
         systemImage: String,
@@ -162,8 +164,10 @@ struct MenuBarContentView: View {
     }
 }
 
-/// Adds a subtle hover background to menu-style rows, since `.buttonStyle(.plain)`
-/// otherwise gives no feedback that a row is interactive.
+/**
+ * Adds a subtle hover background to menu-style rows, since `.buttonStyle(.plain)`
+ * otherwise gives no feedback that a row is interactive.
+ */
 private struct HoverHighlight<Content: View>: View {
     @State private var isHovering = false
     let content: Content

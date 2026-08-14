@@ -25,10 +25,12 @@ private struct TokenResponse: Decodable {
     let refreshToken: String?
 }
 
-/// Handles Google OAuth sign-in/out and access-token refresh for a "Desktop app" OAuth
-/// client, using the loopback redirect flow with PKCE. The refresh token is the only
-/// long-lived secret and is stored in the Keychain; the access token is kept in memory
-/// and refreshed on demand.
+/**
+ * Handles Google OAuth sign-in/out and access-token refresh for a "Desktop app" OAuth
+ * client, using the loopback redirect flow with PKCE. The refresh token is the only
+ * long-lived secret and is stored in the Keychain; the access token is kept in memory
+ * and refreshed on demand.
+ */
 actor GoogleAuthManager {
     static let shared = GoogleAuthManager()
 
@@ -101,7 +103,9 @@ actor GoogleAuthManager {
         accessTokenExpiry = nil
     }
 
-    /// Returns a non-expired access token, refreshing it first if needed.
+    /**
+     * Returns a non-expired access token, refreshing it first if needed.
+     */
     func validAccessToken() async throws -> String {
         if let accessToken, let expiry = accessTokenExpiry, expiry > Date().addingTimeInterval(60) {
             return accessToken
@@ -115,8 +119,10 @@ actor GoogleAuthManager {
         return tokens.accessToken
     }
 
-    /// Discards the in-memory access token so the next request is forced to refresh it,
-    /// e.g. after the Calendar API reports the token as expired or revoked.
+    /**
+     * Discards the in-memory access token so the next request is forced to refresh it,
+     * e.g. after the Calendar API reports the token as expired or revoked.
+     */
     func invalidateAccessToken() {
         accessToken = nil
         accessTokenExpiry = nil

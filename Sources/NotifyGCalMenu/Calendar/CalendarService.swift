@@ -10,7 +10,9 @@ enum CalendarServiceError: Error, LocalizedError {
     }
 }
 
-/// Fetches events from the signed-in user's primary Google Calendar.
+/**
+ * Fetches events from the signed-in user's primary Google Calendar.
+ */
 struct CalendarService {
     private let auth: GoogleAuthManager
 
@@ -18,12 +20,16 @@ struct CalendarService {
         self.auth = auth
     }
 
-    /// Fetches events starting within the configured lead-time window.
+    /**
+     * Fetches events starting within the configured lead-time window.
+     */
     func fetchUpcomingEvents(leadMinutes: Int) async throws -> [CalendarEvent] {
         try await fetchEvents(timeMin: Date(), timeMax: Date().addingTimeInterval(TimeInterval(leadMinutes + 1) * 60))
     }
 
-    /// Fetches the remaining events on today's calendar, regardless of lead time.
+    /**
+     * Fetches the remaining events on today's calendar, regardless of lead time.
+     */
     func fetchTodaysRemainingEvents() async throws -> [CalendarEvent] {
         var endOfToday = Calendar.current.startOfDay(for: Date())
         endOfToday = Calendar.current.date(byAdding: DateComponents(day: 1, second: -1), to: endOfToday) ?? Date()

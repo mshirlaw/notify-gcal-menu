@@ -1,8 +1,10 @@
 import Foundation
 import AppKit
 
-/// Opens an event's video call link, falling back to its Calendar page, the same
-/// resolution order the extension used for notification clicks.
+/**
+ * Opens an event's video call link, falling back to its Calendar page, the same
+ * resolution order the extension used for notification clicks.
+ */
 enum EventLinkOpener {
     static func openLink(forEventId eventId: String) async {
         guard let event = try? await CalendarService().fetchEvent(id: eventId) else { return }

@@ -1,8 +1,10 @@
 import Foundation
 import UserNotifications
 
-/// Shows native macOS notifications for upcoming events, with a "Join Meeting" action
-/// when the event has a video call link, plus a chime, matching the extension's behavior.
+/**
+ * Shows native macOS notifications for upcoming events, with a "Join Meeting" action
+ * when the event has a video call link, plus a chime, matching the extension's behavior.
+ */
 @MainActor
 final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationManager()

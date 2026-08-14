@@ -1,8 +1,10 @@
 import Foundation
 
-/// Google OAuth "Desktop app" client credentials, loaded from the bundled Secrets.plist.
-/// The client secret isn't confidential for installed-app OAuth clients (it ships in the
-/// binary), but it's still kept out of git via Secrets.plist.example + .gitignore.
+/**
+ * Google OAuth "Desktop app" client credentials, loaded from the bundled Secrets.plist.
+ * The client secret isn't confidential for installed-app OAuth clients (it ships in the
+ * binary), but it's still kept out of git via Secrets.plist.example + .gitignore.
+ */
 struct Secrets {
     let googleClientID: String
     let googleClientSecret: String
