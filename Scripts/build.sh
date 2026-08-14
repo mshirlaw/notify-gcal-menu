@@ -41,8 +41,39 @@ else
     echo "Warning: resource bundle not found at $RESOURCE_BUNDLE (Secrets.plist won't load)" >&2
 fi
 
+# SwiftPM has no "Embed Frameworks" build phase, so Sparkle.framework has to be copied in by
+# hand. Per Sparkle's docs (sparkle-project.org/documentation/, "Add the Sparkle framework to
+# your project"): use ditto (not cp) to preserve symlinks/executable permissions inside the
+# framework, and note @executable_path/../Frameworks — Xcode's default rpath — is already
+# sufficient for regular apps like this one, so no @loader_path rpath is needed.
+SPARKLE_FRAMEWORK="$BIN_PATH/Sparkle.framework"
+if [ -d "$SPARKLE_FRAMEWORK" ]; then
+    mkdir -p "$APP_BUNDLE/Contents/Frameworks"
+    ditto "$SPARKLE_FRAMEWORK" "$APP_BUNDLE/Contents/Frameworks/Sparkle.framework"
+    # install_name_tool must run before codesigning below: it invalidates signatures.
+    install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
+else
+    echo "Error: Sparkle.framework not found at $SPARKLE_FRAMEWORK; the app links it and will not launch" >&2
+    exit 1
+fi
+
 echo "Codesigning (ad hoc)..."
-codesign --force --deep --identifier "$BUNDLE_ID" -s - "$APP_BUNDLE"
+# Sign inside-out: nested code first, container last — this is Sparkle's own documented
+# signing order (see their codesign_embedded_executable script/INSTALL history): XPC
+# services, then Autoupdate, then Updater.app, then Sparkle.framework, then the app.
+# --deep is deliberately never used to sign: it would re-sign all nested code with this
+# command's --identifier, stamping com.notifygcalmenu.menu over Sparkle's own
+# org.sparkle-project.* identifiers — and Sparkle looks up its installer XPC service by
+# identifier, so updates would download and then fail to install. (--deep remains correct
+# for *verifying*, below.)
+SPARKLE_BUNDLED="$APP_BUNDLE/Contents/Frameworks/Sparkle.framework"
+codesign --force -s - "$SPARKLE_BUNDLED/Versions/B/XPCServices/Downloader.xpc"
+codesign --force -s - "$SPARKLE_BUNDLED/Versions/B/XPCServices/Installer.xpc"
+codesign --force -s - "$SPARKLE_BUNDLED/Versions/B/Autoupdate"
+codesign --force -s - "$SPARKLE_BUNDLED/Versions/B/Updater.app"
+codesign --force -s - "$SPARKLE_BUNDLED"
+codesign --force --identifier "$BUNDLE_ID" -s - "$APP_BUNDLE"
+codesign --verify --strict --deep "$APP_BUNDLE"
 
 echo "Done: $APP_BUNDLE"
 

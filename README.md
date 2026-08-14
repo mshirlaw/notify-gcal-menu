@@ -15,16 +15,19 @@ if there isn't one.
 
 ## Project Contents
 
-- `Package.swift`: Swift Package Manager manifest (macOS 13+, one executable target)
+- `Package.swift`: Swift Package Manager manifest (macOS 13+, one executable target, depends on Sparkle)
 - `Sources/NotifyGCalMenu/`
-  - `NotifyGCalMenuApp.swift` / `MenuBarContentView.swift` / `AppModel.swift`: the menu bar UI and its state
-  - `GoogleAuthManager.swift` / `LoopbackHTTPServer.swift` / `PKCE.swift` / `KeychainStore.swift`: OAuth sign-in/out and token storage
-  - `CalendarService.swift` / `CalendarModels.swift`: talks to the Calendar API
-  - `EventChecker.swift` / `SettingsStore.swift`: the polling loop, lead-time setting, and notified-event dedup
-  - `NotificationManager.swift` / `ToneEngine.swift` / `EventLinkOpener.swift`: notifications, the chime, and opening links from them
+  - `App/`: `NotifyGCalMenuApp.swift` / `AppModel.swift` / `SettingsStore.swift` / `Constants.swift` / `Log.swift`
+  - `Auth/`: `GoogleAuthManager.swift` / `LoopbackHTTPServer.swift` / `PKCE.swift` / `KeychainStore.swift` / `Secrets.swift`
+  - `Calendar/`: `CalendarService.swift` / `CalendarModels.swift` / `EventChecker.swift`
+  - `Notifications/`: `NotificationManager.swift` / `ToneEngine.swift` / `EventLinkOpener.swift`
+  - `UI/`: `MenuBarContentView.swift` / `UpdaterManager.swift` — the only file that imports Sparkle
   - `Resources/Secrets.plist`: your OAuth client credentials (gitignored — see setup below)
+- `Tests/NotifyGCalMenuTests/`: unit tests, run via `swift test`
 - `Info.plist`: app bundle metadata (menu-bar-only, no Dock icon)
 - `Scripts/build.sh`: builds the package and assembles it into a runnable `.app`
+- `appcast.xml`: the Sparkle update feed, hosted from the repo root
+- `.github/workflows/ci.yml`: builds and tests on every push and pull request
 
 ## First-Time Developer Setup
 
@@ -87,7 +90,7 @@ MARKETING_VERSION=1.2.3 ./Scripts/build.sh release
 ```
 
 To actually cut a release today (manual, since there's no CI/signing pipeline yet — see
-#12/#13/#17 for that automation):
+#12/#13 for that automation):
 
 ```sh
 git tag v1.2.3
@@ -102,6 +105,53 @@ anyone downloading it will need to right-click → Open (or approve it in System
 Settings → Privacy & Security) to bypass Gatekeeper's unidentified-developer warning.
 Proper signing and notarization are tracked in #12.
 
+## Enabling Auto-Update
+
+The app ships with [Sparkle](https://sparkle-project.org/) wired up but switched off:
+`SUPublicEDKey` in `Info.plist` is a placeholder, and until it holds a real key the updater
+never starts and the popover hides its "Check for Updates…" row. This follows Sparkle's own
+documented setup (see [sparkle-project.org/documentation/](https://sparkle-project.org/documentation/)) —
+two steps activate it, and only the first needs a human.
+
+### 1. Generate the signing key (once, by the maintainer)
+
+Download the Sparkle release tools from
+[sparkle-project/Sparkle releases](https://github.com/sparkle-project/Sparkle/releases)
+and run:
+
+```sh
+./bin/generate_keys
+```
+
+This stores the private key in your login Keychain and prints the public key. Paste that
+public key into `Info.plist` as `SUPublicEDKey`, replacing `YOUR_SPARKLE_PUBLIC_KEY`.
+
+The private key never leaves your Keychain and must never be committed. Back it up
+(`./bin/generate_keys -x private-key.txt`) somewhere safe — losing it means no existing
+install can be updated again.
+
+### 2. Publish releases
+
+`appcast.xml` in the repository root is the update feed, served directly by GitHub at
+`https://raw.githubusercontent.com/mshirlaw/notify-gcal-menu/main/appcast.xml` — no GitHub
+Pages or other hosting required. It starts with no entries, which Sparkle reads as "you're
+up to date".
+
+For each release, sign the distributed archive and add an `<item>` to `appcast.xml`. Sparkle
+recommends its own `generate_appcast` tool over hand-editing the XML — point it at a folder
+containing your release archives and it produces the feed (and signatures) for you:
+
+```sh
+./bin/generate_appcast /path/to/your/releases_folder/
+```
+
+Automating this as part of the release pipeline is tracked in #12/#13.
+
+> **One rule worth knowing:** Sparkle accepts an update if *either* the EdDSA key *or* the
+> code signing identity matches the installed copy. Changing one at a time is safe;
+> changing both in the same release breaks auto-update for every existing install
+> permanently.
+
 ## Usage
 
 - Click the bell icon to open the menu
@@ -110,6 +160,8 @@ Proper signing and notarization are tracked in #12.
 - "Notify me" controls how far ahead of an event start you get notified
 - "Sync Now" runs an immediate check instead of waiting for the next cycle, and lists
   today's remaining events
+- "Check for Updates…" asks Sparkle to check right away; it only appears once a real
+  Sparkle key is configured (see Enabling Auto-Update above), hidden by default
 - "Sign out" revokes the app's access to your calendar and clears the stored refresh token
 
 ## Notes / Limitations
