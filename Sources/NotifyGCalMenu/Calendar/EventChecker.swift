@@ -52,7 +52,8 @@ final class EventChecker {
         }
     }
 
-    private func isEventStartingSoon(_ event: CalendarEvent, leadMinutes: Int) -> Bool {
+    // Internal rather than private so it's directly testable via @testable import.
+    func isEventStartingSoon(_ event: CalendarEvent, leadMinutes: Int) -> Bool {
         guard let start = event.startDate else { return false }
         let secondsUntilStart = start.timeIntervalSinceNow
         return secondsUntilStart <= Double(leadMinutes) * 60 && secondsUntilStart > -60

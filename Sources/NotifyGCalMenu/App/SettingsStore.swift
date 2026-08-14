@@ -3,9 +3,13 @@ import Foundation
 /// Persists the notification lead time and the set of already-notified event IDs,
 /// mirroring the extension's chrome.storage.sync/local usage.
 struct SettingsStore {
-    private let defaults = UserDefaults.standard
+    private let defaults: UserDefaults
     private let leadMinutesKey = "leadMinutes"
     private let notifiedEventIdsKey = "notifiedEventIds"
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+    }
 
     var leadMinutes: Int {
         get {
