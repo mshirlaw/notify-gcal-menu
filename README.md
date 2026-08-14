@@ -91,6 +91,8 @@ Troubleshooting).
   `com.notifygcalmenu.google-refresh-token`; deleting that Keychain item has the same
   effect as signing out
 
+See [PRIVACY.md](PRIVACY.md) for what calendar data the app accesses and how it's stored.
+
 ## Troubleshooting
 
 - **"Secrets.plist still has placeholder OAuth credentials"**: finish the First-Time
