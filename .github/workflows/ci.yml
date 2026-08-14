@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      # Secrets.plist is gitignored and declared as a resource in Package.swift, so its
+      # absence fails the build outright rather than just warning at runtime. No real
+      # secrets are needed to compile or run the test suite, so seed placeholders.
+      - name: Seed Secrets.plist from the example
+        run: |
+          SECRETS=Sources/NotifyGCalMenu/Resources/Secrets.plist
+          if [ ! -f "$SECRETS" ]; then
+            cp "$SECRETS.example" "$SECRETS"
+          fi
+
+      - name: Build
+        run: swift build
+
+      - name: Test
+        run: swift test
