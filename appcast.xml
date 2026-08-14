@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>Notify GCal Menu</title>
+    <link>https://raw.githubusercontent.com/mshirlaw/notify-gcal-menu/main/appcast.xml</link>
+    <description>Update feed for Notify GCal Menu.</description>
+    <language>en</language>
+    <!-- Releases are added here as <item> elements, newest first. -->
+  </channel>
+</rss>

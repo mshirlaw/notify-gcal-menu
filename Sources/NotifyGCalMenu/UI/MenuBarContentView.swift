@@ -3,6 +3,7 @@ import SwiftUI
 
 struct MenuBarContentView: View {
     @ObservedObject var appModel: AppModel
+    @ObservedObject var updater: UpdaterManager
 
     private let horizontalPadding: CGFloat = 16
 
@@ -16,6 +17,12 @@ struct MenuBarContentView: View {
             notificationsSection
 
             Divider()
+
+            if updater.isEnabled {
+                actionRow(title: "Check for Updates…", systemImage: "arrow.triangle.2.circlepath") {
+                    updater.checkForUpdates()
+                }
+            }
 
             actionRow(title: "Sync Now", systemImage: "arrow.clockwise", shortcut: "⌘S") {
                 Task { await appModel.checkNow() }
@@ -137,7 +144,7 @@ struct MenuBarContentView: View {
     private func actionRow(
         title: String,
         systemImage: String,
-        shortcut: String,
+        shortcut: String? = nil,
         emphasized: Bool = true,
         action: @escaping () -> Void
     ) -> some View {
@@ -146,12 +153,14 @@ struct MenuBarContentView: View {
                 HStack {
                     Label(title, systemImage: systemImage)
                     Spacer()
-                    Text(shortcut)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        // Decorative: the real shortcut is wired via .keyboardShortcut
-                        // below. Reading the glyph aloud adds noise, not information.
-                        .accessibilityHidden(true)
+                    if let shortcut {
+                        Text(shortcut)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            // Decorative: the real shortcut is wired via .keyboardShortcut
+                            // below. Reading the glyph aloud adds noise, not information.
+                            .accessibilityHidden(true)
+                    }
                 }
                 .foregroundStyle(emphasized ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
                 .padding(.horizontal, horizontalPadding)
