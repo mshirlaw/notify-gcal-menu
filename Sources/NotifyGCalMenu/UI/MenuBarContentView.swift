@@ -109,7 +109,7 @@ struct MenuBarContentView: View {
                 "",
                 selection: Binding(
                     get: { appModel.leadMinutes },
-                    set: { appModel.leadMinutesChanged(to: $0) }
+                    set: { appModel.setLeadMinutes($0) }
                 )
             ) {
                 Text("Right when it starts").tag(0)
