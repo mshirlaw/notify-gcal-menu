@@ -7,6 +7,7 @@ import Foundation
 struct SettingsStore {
     private let defaults: UserDefaults
     private let leadMinutesKey = "leadMinutes"
+    private let notificationsEnabledKey = "notificationsEnabled"
     private let notifiedEventIdsKey = "notifiedEventIds"
 
     init(defaults: UserDefaults = .standard) {
@@ -19,6 +20,15 @@ struct SettingsStore {
             return defaults.object(forKey: leadMinutesKey) != nil ? value : Constants.defaultLeadMinutes
         }
         nonmutating set { defaults.set(newValue, forKey: leadMinutesKey) }
+    }
+
+    var notificationsEnabled: Bool {
+        get {
+            defaults.object(forKey: notificationsEnabledKey) != nil
+                ? defaults.bool(forKey: notificationsEnabledKey)
+                : true
+        }
+        nonmutating set { defaults.set(newValue, forKey: notificationsEnabledKey) }
     }
 
     /**
