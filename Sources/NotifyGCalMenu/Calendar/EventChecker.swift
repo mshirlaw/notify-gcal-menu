@@ -37,6 +37,7 @@ final class EventChecker {
     }
 
     private func runCheck() async {
+        guard settings.notificationsEnabled else { return }
         do {
             let leadMinutes = settings.leadMinutes
             let events = try await calendarService.fetchUpcomingEvents(leadMinutes: leadMinutes)

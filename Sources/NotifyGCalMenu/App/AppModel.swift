@@ -8,6 +8,7 @@ import Foundation
 final class AppModel: ObservableObject {
     @Published private(set) var isSignedIn = false
     @Published var leadMinutes: Int
+    @Published var notificationsEnabled: Bool
     @Published private(set) var todaysEvents: [EventSummary] = []
     @Published private(set) var statusMessage: String?
 
@@ -18,6 +19,7 @@ final class AppModel: ObservableObject {
 
     init() {
         leadMinutes = settings.leadMinutes
+        notificationsEnabled = settings.notificationsEnabled
         // Fired from init rather than a SwiftUI `.task` on the dropdown's content view: with
         // MenuBarExtra(.window), that content is only built the first time the user opens the
         // menu, which would leave notifications unconfigured and polling never started until
@@ -74,6 +76,11 @@ final class AppModel: ObservableObject {
     func setLeadMinutes(_ newValue: Int) {
         leadMinutes = newValue
         settings.leadMinutes = newValue
+    }
+
+    func setNotificationsEnabled(_ newValue: Bool) {
+        notificationsEnabled = newValue
+        settings.notificationsEnabled = newValue
     }
 
     private func refreshSignedInState() async {

@@ -32,6 +32,20 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.leadMinutes, 5)
     }
 
+    func testNotificationsEnabledDefaultsToTrueWhenUnset() {
+        let store = SettingsStore(defaults: defaults)
+
+        XCTAssertTrue(store.notificationsEnabled)
+    }
+
+    func testNotificationsEnabledRoundTripsThroughStorage() {
+        let store = SettingsStore(defaults: defaults)
+
+        store.notificationsEnabled = false
+
+        XCTAssertFalse(store.notificationsEnabled)
+    }
+
     func testNotifiedEventIdsIsEmptyWhenUnset() {
         let store = SettingsStore(defaults: defaults)
 
