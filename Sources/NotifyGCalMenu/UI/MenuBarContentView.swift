@@ -32,12 +32,6 @@ struct MenuBarContentView: View {
                 }
             }
 
-            actionRow(title: "Sync Now", systemImage: "arrow.clockwise", shortcut: "⌘S") {
-                Task { await appModel.checkNow() }
-            }
-            .keyboardShortcut("s", modifiers: .command)
-            .disabled(!appModel.isSignedIn)
-
             if let statusMessage = appModel.statusMessage {
                 Text(statusMessage)
                     .font(.caption)
@@ -190,7 +184,7 @@ struct MenuBarContentView: View {
     /**
      * `emphasized` lowers the row's text/icon weight for lower-priority or terminal
      * actions (e.g. Quit), so it doesn't compete visually with everyday actions like
-     * Sync Now — differentiating by consequence rather than by identical styling.
+     * Check for Updates — differentiating by consequence rather than by identical styling.
      */
     private func actionRow(
         title: String,
