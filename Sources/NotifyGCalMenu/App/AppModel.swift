@@ -60,9 +60,9 @@ final class AppModel: ObservableObject {
     func signOut() async {
         await auth.signOut()
         eventChecker.stopPolling()
+        await refreshSignedInState()
         todaysEvents = []
         statusMessage = "Signed out"
-        await refreshSignedInState()
     }
 
     func setLeadMinutes(_ newValue: Int) {
