@@ -131,7 +131,6 @@ struct MenuBarContentView: View {
     @ViewBuilder
     private var todaysEventsSection: some View {
         if appModel.statusMessage != nil || !appModel.todaysEvents.isEmpty {
-            Divider().padding(.vertical, 4)
             VStack(alignment: .leading, spacing: 8) {
                 Text("TODAY")
                     .font(.caption2)
