@@ -10,6 +10,12 @@ final class EventChecker {
     private let settings = SettingsStore()
     private var pollingTask: Task<Void, Never>?
 
+    /**
+     * Notified with today's remaining events after every poll tick, so the menu can show
+     * an always-up-to-date list without a separate manual refresh action.
+     */
+    var onEventsUpdated: (([EventSummary]) -> Void)?
+
     func startPolling() {
         guard pollingTask == nil else { return }
         pollingTask = Task {
@@ -26,32 +32,31 @@ final class EventChecker {
     }
 
     /**
-     * Forgets previously notified events, runs an immediate check, and returns today's
-     * remaining events so the menu can show what was seen.
+     * Fetches today's remaining events once per tick, both to fire notifications for
+     * ones starting soon and to publish the full list for display. Fetching happens
+     * regardless of `notificationsEnabled` so the displayed list keeps updating even
+     * while notifications are muted; only the notification-firing step is guarded.
      */
-    func checkNow() async throws -> [EventSummary] {
-        settings.saveNotifiedEventIds([:])
-        await runCheck()
-        let events = try await calendarService.fetchTodaysRemainingEvents()
-        return events.map(EventSummary.init)
-    }
-
     private func runCheck() async {
-        guard settings.notificationsEnabled else { return }
         do {
-            let leadMinutes = settings.leadMinutes
-            let events = try await calendarService.fetchUpcomingEvents(leadMinutes: leadMinutes)
-            var notifiedEventIds = settings.prunedNotifiedEventIds()
+            let events = try await calendarService.fetchTodaysRemainingEvents()
 
-            for event in events {
-                guard notifiedEventIds[event.id] == nil, isEventStartingSoon(event, leadMinutes: leadMinutes) else {
-                    continue
+            if settings.notificationsEnabled {
+                let leadMinutes = settings.leadMinutes
+                var notifiedEventIds = settings.prunedNotifiedEventIds()
+
+                for event in events {
+                    guard notifiedEventIds[event.id] == nil, isEventStartingSoon(event, leadMinutes: leadMinutes) else {
+                        continue
+                    }
+                    await NotificationManager.shared.showNotification(for: event)
+                    notifiedEventIds[event.id] = Date()
                 }
-                await NotificationManager.shared.showNotification(for: event)
-                notifiedEventIds[event.id] = Date()
+
+                settings.saveNotifiedEventIds(notifiedEventIds)
             }
 
-            settings.saveNotifiedEventIds(notifiedEventIds)
+            onEventsUpdated?(events.map(EventSummary.init))
         } catch {
             Log.calendar.error("check failed: \(error.localizedDescription)")
         }

@@ -20,6 +20,10 @@ final class AppModel: ObservableObject {
     init() {
         leadMinutes = settings.leadMinutes
         notificationsEnabled = settings.notificationsEnabled
+        eventChecker.onEventsUpdated = { [weak self] events in
+            self?.todaysEvents = events
+            self?.statusMessage = events.isEmpty ? "No more events today" : "\(events.count) event(s) left today"
+        }
         // Fired from init rather than a SwiftUI `.task` on the dropdown's content view: with
         // MenuBarExtra(.window), that content is only built the first time the user opens the
         // menu, which would leave notifications unconfigured and polling never started until
@@ -59,18 +63,6 @@ final class AppModel: ObservableObject {
         todaysEvents = []
         statusMessage = "Signed out"
         await refreshSignedInState()
-    }
-
-    func checkNow() async {
-        statusMessage = "Checking calendar..."
-        do {
-            let events = try await eventChecker.checkNow()
-            todaysEvents = events
-            statusMessage = events.isEmpty ? "Checked, no more events today" : "Checked, \(events.count) event(s) left today"
-        } catch {
-            statusMessage = "Check failed: \(error.localizedDescription)"
-            todaysEvents = []
-        }
     }
 
     func setLeadMinutes(_ newValue: Int) {
