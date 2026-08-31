@@ -32,31 +32,14 @@ struct MenuBarContentView: View {
                 }
             }
 
-            if let statusMessage = appModel.statusMessage {
+            if appModel.isSignedIn {
+                todaysEventsSection
+            } else if let statusMessage = appModel.statusMessage {
                 Text(statusMessage)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, horizontalPadding)
                     .padding(.bottom, 8)
-            }
-
-            if !appModel.todaysEvents.isEmpty {
-                Divider().padding(.vertical, 4)
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(appModel.todaysEvents) { event in
-                        HStack(spacing: 6) {
-                            Circle()
-                                .fill(Theme.primary)
-                                .frame(width: 6, height: 6)
-                            Text("\(event.startLabel) - \(event.title)")
-                                .font(.caption)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                        }
-                    }
-                }
-                .padding(.horizontal, horizontalPadding)
-                .padding(.vertical, 10)
             }
 
             Divider().padding(.vertical, 4)
@@ -138,6 +121,44 @@ struct MenuBarContentView: View {
         }
         .padding(.horizontal, horizontalPadding)
         .padding(.vertical, 10)
+    }
+
+    /**
+     * Groups the poll-driven status text and remaining-events list under a header, since
+     * with the old "Sync Now" button gone, the status text otherwise sat unlabeled right
+     * beneath the Notifications section divider with no visual grouping of its own.
+     */
+    @ViewBuilder
+    private var todaysEventsSection: some View {
+        if appModel.statusMessage != nil || !appModel.todaysEvents.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("TODAY")
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+                    .accessibilityAddTraits(.isHeader)
+
+                if let statusMessage = appModel.statusMessage {
+                    Text(statusMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                ForEach(appModel.todaysEvents) { event in
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(Theme.primary)
+                            .frame(width: 6, height: 6)
+                        Text("\(event.startLabel) - \(event.title)")
+                            .font(.caption)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+                }
+            }
+            .padding(.horizontal, horizontalPadding)
+            .padding(.vertical, 10)
+        }
     }
 
     private var leadMinutesLabel: String {
